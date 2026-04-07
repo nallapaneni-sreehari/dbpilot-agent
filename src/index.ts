@@ -5,17 +5,20 @@ import { extractSchema, TableSchema } from './schema';
 
 // ── CLI argument parsing ──────────────────────────────────────────────────────
 
-function parseArgs(): { token: string; server: string } {
+function parseArgs(): { token: string; server: string; insecure: boolean } {
   const args = process.argv.slice(2);
   let token = process.env['DBPILOT_TOKEN'] ?? '';
   let server =
     process.env['DBPILOT_SERVER'] ?? 'wss://dbpilot.iamsreehari.in/ws/agent';
+  let insecure = process.env['NODE_TLS_REJECT_UNAUTHORIZED'] === '0';
 
   for (let i = 0; i < args.length; i++) {
     if ((args[i] === '--token' || args[i] === '-t') && args[i + 1]) {
       token = args[++i];
     } else if ((args[i] === '--server' || args[i] === '-s') && args[i + 1]) {
       server = args[++i];
+    } else if (args[i] === '--insecure' || args[i] === '-k') {
+      insecure = true;
     } else if (args[i] === '--help' || args[i] === '-h') {
       printUsage();
       process.exit(0);
@@ -30,7 +33,7 @@ function parseArgs(): { token: string; server: string } {
     process.exit(1);
   }
 
-  return { token, server };
+  return { token, server, insecure };
 }
 
 function printUsage(): void {
@@ -38,16 +41,19 @@ function printUsage(): void {
 DBPilot Local Agent — forwards queries from DBPilot to your localhost databases
 
 Usage:
-  dbpilot-agent --token <jwt>  [--server <wss://...>]
+  dbpilot-agent --token <jwt>  [--server <wss://...>] [--insecure]
 
 Options:
-  --token,  -t   Your DBPilot JWT access token  (required)
-  --server, -s   WebSocket server URL            (default: wss://dbpilot.iamsreehari.in/ws/agent)
-  --help,   -h   Show this help message
+  --token,    -t   Your DBPilot JWT access token  (required)
+  --server,   -s   WebSocket server URL            (default: wss://dbpilot.iamsreehari.in/ws/agent)
+  --insecure, -k   Skip TLS certificate validation (use on corporate networks with SSL inspection)
+  --help,     -h   Show this help message
 
 Environment variables:
-  DBPILOT_TOKEN    JWT token (alternative to --token)
-  DBPILOT_SERVER   Server URL (alternative to --server)
+  DBPILOT_TOKEN                JWT token (alternative to --token)
+  DBPILOT_SERVER               Server URL (alternative to --server)
+  NODE_TLS_REJECT_UNAUTHORIZED Set to '0' to skip TLS validation (same as --insecure)
+  NODE_EXTRA_CA_CERTS          Path to your corporate CA bundle (preferred over --insecure)
 `);
 }
 
@@ -95,7 +101,7 @@ const RECONNECT_DELAY_MAX_MS = 60000;
 let reconnectDelay = RECONNECT_DELAY_MS;
 let stopping = false;
 
-function connect(token: string, serverUrl: string): void {
+function connect(token: string, serverUrl: string, insecure: boolean): void {
   // Normalise the server URL:
   // 1. Convert http(s):// → ws(s)://
   // 2. Append /ws/agent if not already present
@@ -107,7 +113,12 @@ function connect(token: string, serverUrl: string): void {
   }
 
   const url = `${wsUrl}?token=${encodeURIComponent(token)}`;
-  const ws = new WebSocket(url);
+  const wsOptions = insecure ? { rejectUnauthorized: false } : {};
+  const ws = new WebSocket(url, wsOptions);
+
+  if (insecure) {
+    console.warn('[dbpilot-agent] WARNING: TLS certificate validation is disabled (--insecure).');
+  }
 
   console.log(`[dbpilot-agent] Connecting to ${wsUrl}...`);
   ws.on('open', () => {
@@ -188,7 +199,7 @@ function connect(token: string, serverUrl: string): void {
       `[dbpilot-agent] Disconnected (code ${code}${reason?.length ? ': ' + reason.toString() : ''}). ` +
         `Reconnecting in ${reconnectDelay / 1000}s...`,
     );
-    setTimeout(() => connect(token, serverUrl), reconnectDelay);
+    setTimeout(() => connect(token, serverUrl, insecure), reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_DELAY_MAX_MS);
   });
 
@@ -200,7 +211,7 @@ function connect(token: string, serverUrl: string): void {
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
-const { token, server } = parseArgs();
+const { token, server, insecure } = parseArgs();
 
 console.log(`[dbpilot-agent] Starting — connecting to ${server}`);
 
@@ -210,4 +221,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-connect(token, server);
+connect(token, server, insecure);
