@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import WebSocket from 'ws';
 import { runQuery, ConnectionParams } from './query';
+import { extractSchema, TableSchema } from './schema';
 
 // ── CLI argument parsing ──────────────────────────────────────────────────────
 
@@ -71,6 +72,21 @@ interface QueryResponseMessage {
   error?: string;
 }
 
+interface SchemaRequestMessage {
+  type: 'SCHEMA_REQUEST';
+  requestId: string;
+  dbType: string;
+  connectionParams: ConnectionParams;
+}
+
+interface SchemaResponseMessage {
+  type: 'SCHEMA_RESPONSE';
+  requestId: string;
+  success: boolean;
+  schema?: TableSchema[];
+  error?: string;
+}
+
 // ── Connection with auto-reconnect ────────────────────────────────────────────
 
 const RECONNECT_DELAY_MS = 5000;
@@ -135,6 +151,31 @@ function connect(token: string, serverUrl: string): void {
 
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(response));
+      }
+    } else if ((msg as { type: string }).type === 'SCHEMA_REQUEST') {
+      const schemaMsg = msg as unknown as SchemaRequestMessage;
+      console.log(`[dbpilot-agent] Schema request ${schemaMsg.requestId} [${schemaMsg.dbType}]`);
+
+      let schemaResponse: SchemaResponseMessage;
+      try {
+        const schema = await extractSchema(schemaMsg.dbType, schemaMsg.connectionParams);
+        schemaResponse = {
+          type: 'SCHEMA_RESPONSE',
+          requestId: schemaMsg.requestId,
+          success: true,
+          schema,
+        };
+      } catch (err) {
+        schemaResponse = {
+          type: 'SCHEMA_RESPONSE',
+          requestId: schemaMsg.requestId,
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(schemaResponse));
       }
     } else if ((msg as { type: string }).type === 'CONNECTED') {
       console.log(`[dbpilot-agent] Server acknowledged: ${(msg as unknown as { message: string }).message ?? 'ready'}`);

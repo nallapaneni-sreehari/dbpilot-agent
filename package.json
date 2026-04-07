@@ -9,12 +9,18 @@
   "files": [
     "dist"
   ],
-  "keywords": ["dbpilot", "database", "tunnel", "agent", "localhost"],
+  "keywords": [
+    "dbpilot",
+    "database",
+    "tunnel",
+    "agent",
+    "localhost"
+  ],
   "author": "Sreehari Nallapaneni",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nallapaneni-sreehari/dbpilot-agent.git"
+    "url": "git+https://github.com/nallapaneni-sreehari/dbpilot-agent.git"
   },
   "scripts": {
     "build": "tsc",
