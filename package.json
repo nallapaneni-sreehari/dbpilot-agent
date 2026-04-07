@@ -1,6 +1,6 @@
 {
   "name": "dbpilot-agent",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Local tunnel agent for DBPilot — forwards queries from the DBPilot server to your localhost database",
   "main": "dist/index.js",
   "bin": {
