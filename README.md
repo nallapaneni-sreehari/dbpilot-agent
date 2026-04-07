@@ -1,21 +1,21 @@
 # dbpilot-agent
 
-Local tunnel agent for [DBPilot](https://dbpilot.iamsreehari.in) — connects your localhost databases to the hosted DBPilot app via a secure WebSocket tunnel.
+Local tunnel agent for [DBPilot](https://dbpilot.iamsreehari.in) connects your localhost databases to the hosted DBPilot app via a secure WebSocket tunnel.
 
 ## How it works
 
-DBPilot's hosted server can't reach your `localhost` directly. This agent runs on your machine, opens a persistent WebSocket connection to the DBPilot server, and forwards query/schema requests to your local database — so you can use the full DBPilot UI against databases that are not publicly accessible.
+DBPilot's hosted server can't reach your `localhost` directly. This agent runs on your machine, opens a persistent WebSocket connection to the DBPilot server, and forwards query/schema requests to your local database so you can use the full DBPilot UI against databases that are not publicly accessible.
 
 ```
-Browser ? DBPilot server ? WebSocket tunnel ? dbpilot-agent (your machine) ? localhost DB
+Browser -> DBPilot server -> WebSocket tunnel -> dbpilot-agent (your machine) -> localhost DB
 ```
 
-Your database credentials are decrypted and used **on your machine only** — they are never sent to the server.
+Your database credentials are decrypted and used **on your machine only**  they are never sent to the server.
 
 ## Installation
 
 ```bash
-# Run without installing (recommended — always uses latest)
+# Run without installing (recommended  always uses latest)
 npx dbpilot-agent@latest --token <your-jwt-token>
 
 # Or install globally
